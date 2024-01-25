@@ -12,8 +12,12 @@ import com.example.demo.services.UsersService;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
+import com.razorpay.Utils;
 
 import jakarta.servlet.http.HttpSession;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 @Controller
 public class PaymentController {
@@ -25,12 +29,21 @@ public class PaymentController {
 		return "pay";
 	}
 	
+	@GetMapping("/payment-success")
+	public String paymentSuccess(HttpSession session) {
+		String mail=(String) session.getAttribute("email");
+		Users u=service.getUser(mail);
+		u.setPremium(true);
+		service.updateUser(u);
+		return "customerHome";
+	}
+	
 	//https://github.com/deep473/tuneHub
 
 	@SuppressWarnings("finally")
 	@PostMapping("/createOrder")
 	@ResponseBody
-	public String createOrder(HttpSession session) {
+	public String createOrder() {
 
 		int  amount  = 5000;
 		Order order=null;
@@ -44,19 +57,33 @@ public class PaymentController {
 
 			order = razorpay.orders.create(orderRequest);
 
-			String mail =  (String) session.getAttribute("email");
-
-			Users u = service.getUser(mail);
-			u.setPremium(true);
-			service.updateUser(u);
-
 		} catch (RazorpayException e) {
 			e.printStackTrace();
 		}
 		finally {
 			return order.toString();
 		}
-	}	
+	}
+	
+	@PostMapping("/verify")
+	@ResponseBody
+	public boolean verifyPayment(@RequestParam String orderId, @RequestParam String  paymentId,@RequestParam String signature) {
+	
+		try {
+			RazorpayClient razorpayClient=new RazorpayClient("rrzp_test_VlhOQYr2j1VHBZ", "Oxn7dV7V4oBALst7urLj8IIv");
+
+	            String verificationData = orderId + "|" + paymentId;
+
+              boolean isValidSignature =  Utils.verifySignature(verificationData, signature,"Oxn7dV7V4oBALst7urLj8IIv");
+	
+	    return isValidSignature;
+		}
+		 catch (RazorpayException e) {
+				e.printStackTrace();
+				return false;
+	
+}
+}
 }
 
 
